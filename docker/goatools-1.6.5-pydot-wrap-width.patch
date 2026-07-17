@@ -1,0 +1,10 @@
+--- a/goatools/obo_parser.py
++++ b/goatools/obo_parser.py
+@@ -653,6 +653,7 @@ class GODag(dict):
+                 nodecolor,
+                 edgecolor,
+                 dpi,
++                wrap_width,
+                 format=format,
+                 draw_parents=draw_parents,
+                 draw_children=draw_children,
