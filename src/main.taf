@@ -1,2 +1,42 @@
-<taf-app:container:ghcr.io/taffish/goatools:1.6.5-r1>
+<shell>
+# Expose verified storage only; the user still selects each ontology/annotation.
+taf_goatools_mount() {
+    taf_go_backend="$1"
+    case "${TAFFISH_GOATOOLS_DB_AUTO_MOUNT:-1}" in
+        0) printf -- '--env=TAFFISH_ENV=TAFFISH'; return ;;
+        1) ;;
+        *) printf >&2 'taf-goatools: DB_AUTO_MOUNT must be 0 or 1\n'
+           printf -- '--taf-goatools-invalid-resource'; return ;;
+    esac
+    taf_go_root="${TAFFISH_GOATOOLS_DB_PATH:-}"
+    if test "${TAFFISH_GOATOOLS_DB_PATH+x}" != x; then
+        for taf_go_path in "${HOME}/.local/share/taffish/databases/goatools" /usr/local/share/taffish/databases/goatools /opt/taffish/databases/goatools; do
+            if test -e "$taf_go_path" || test -L "$taf_go_path"; then taf_go_root="$taf_go_path"; break; fi
+        done
+        if test -z "$taf_go_root"; then printf -- '--env=TAFFISH_ENV=TAFFISH'; return; fi
+    fi
+    taf_go_ok=1
+    if ! test -d "$taf_go_root"; then taf_go_ok=0; else
+        taf_go_root="$(CDPATH= cd "$taf_go_root" && pwd -P)"
+        case "$taf_go_root" in *:*|*,*) taf_go_ok=0 ;; esac
+        # The frozen module is also copied into the image for the installer.
+        # Isolated mode prevents user site/PYTHONPATH from changing validation.
+        if ! command -v python3 >/dev/null 2>&1; then
+            printf >&2 'taf-goatools: automatic resource validation requires host Python 3; disable discovery and verify inside the container before a manual bind.\n'
+            taf_go_ok=0
+        elif ! python3 -I -B "::*LOADDIR*::/resource_validation.py" "$taf_go_root"; then
+            taf_go_ok=0
+        fi
+    fi
+    if test "$taf_go_ok" != 1; then
+        printf >&2 'taf-goatools: invalid/unprepared DB root: %s; verify with goatools-resources --verify, choose DB_PATH, or set TAFFISH_GOATOOLS_DB_AUTO_MOUNT=0 for setup/manual paths.\n' "$taf_go_root"
+        printf -- '--taf-goatools-invalid-resource'; return
+    fi
+    if test "$taf_go_backend" = apptainer; then
+        printf -- '--bind=%s:/go-resources:ro' "$taf_go_root"
+    else
+        printf -- '--volume=%s:/go-resources:ro' "$taf_go_root"
+    fi
+}
+<taf-app:container:ghcr.io/taffish/goatools:1.6.6-r1$@[docker/podman: "$(taf_goatools_mount docker)"][apptainer: "$(taf_goatools_mount apptainer)"]>
 goatools ::*ARGV*::

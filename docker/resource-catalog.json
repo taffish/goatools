@@ -1,0 +1,32 @@
+{
+  "go-2026-08-05-basic": {
+    "id": "go-2026-08-05-basic",
+    "version": "GO release 2026-08-05; ontology header 2026-07-26",
+    "filename": "go-basic.obo",
+    "url": "https://release.geneontology.org/2026-08-05/ontology/go-basic.obo",
+    "sha256": "b08d45b268b8c24ccb2513dbbbc7d4df9f6521c099b413f79eb31e06e0fa3bcc",
+    "size": 32227785,
+    "license": "CC-BY-4.0",
+    "attribution": "Gene Ontology Consortium, dated release 2026-08-05. Cite this release and the GO papers. https://geneontology.org/docs/go-citation-policy/ https://creativecommons.org/licenses/by/4.0/ Data provided without warranty."
+  },
+  "go-2026-08-05-slim-generic": {
+    "id": "go-2026-08-05-slim-generic",
+    "version": "GO release 2026-08-05; ontology header 2026-07-26",
+    "filename": "goslim_generic.obo",
+    "url": "https://release.geneontology.org/2026-08-05/ontology/subsets/goslim_generic.obo",
+    "sha256": "a28d9dd0364e39a6dc926599bd628c524d3c389017b5398642c8cf2484d9f111",
+    "size": 125864,
+    "license": "CC-BY-4.0",
+    "attribution": "Gene Ontology Consortium, dated release 2026-08-05. Cite this release and the GO papers. https://geneontology.org/docs/go-citation-policy/ https://creativecommons.org/licenses/by/4.0/ Data provided without warranty."
+  },
+  "go-2026-08-05-yeast-gaf": {
+    "id": "go-2026-08-05-yeast-gaf",
+    "version": "GO release 2026-08-05",
+    "filename": "YEAST-mod.gaf.gz",
+    "url": "https://release.geneontology.org/2026-08-05/annotations/gaf/YEAST-mod.gaf.gz",
+    "sha256": "bea6d4453bb47db293d9103b73866801fe8e341975e5f8b5f3ca42053098d089",
+    "size": 2249310,
+    "license": "CC-BY-4.0",
+    "attribution": "Gene Ontology Consortium and Saccharomyces Genome Database, dated release 2026-08-05. Preserve the original GAF attribution headers. https://geneontology.org/docs/go-citation-policy/ https://creativecommons.org/licenses/by/4.0/ Data provided without warranty."
+  }
+}

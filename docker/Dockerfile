@@ -1,12 +1,16 @@
-FROM python:3.12-slim-bookworm AS builder
+# The multi-platform base digest fixes its bytes, not future registry retention.
+# If unavailable, verify a new official digest and rebuild both native platforms.
+FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS builder
 
 ARG TARGETARCH
-ARG GOATOOLS_VERSION=1.6.5
-ARG GOATOOLS_COMMIT=c5fedea21e9f66c3c2c13da788ea04a5c760329f
-ARG GOATOOLS_WHEEL_URL=https://files.pythonhosted.org/packages/20/53/1020a7b32651289a68ec853d43fb412c8982d6d1de2289e6cb6f55bc4b7b/goatools-1.6.5-py3-none-any.whl
-ARG GOATOOLS_WHEEL_SHA256=2b093ded287178b494e28350bce6beb60b920ff5f923fc5aaef227dd6ffb935a
-ARG GOATOOLS_SDIST_URL=https://files.pythonhosted.org/packages/e6/87/07e80f31af72d8e2c35936d1e5670ac05ff6009cc4a9412eb99e18efd24a/goatools-1.6.5.tar.gz
-ARG GOATOOLS_SDIST_SHA256=0d799706dc3ae4480feda25f411f8e9b2741c0d8ea7ad73af0b05730198a4be1
+ARG GOATOOLS_VERSION=1.6.6
+ARG GOATOOLS_COMMIT=ffcdfcdbee22f652dd600561ffabb67e60fccb8b
+# Official artifacts are hash-checked; a 404 is not permission to change a hash.
+# Recover identical verified bytes or review a successor and rerun the full suite.
+ARG GOATOOLS_WHEEL_URL=https://files.pythonhosted.org/packages/e3/57/fc8849a6263df33260292f77f08d43859e767b804769d3f98df5a527fb4e/goatools-1.6.6-py3-none-any.whl
+ARG GOATOOLS_WHEEL_SHA256=d883c23e8f6c7f4ef8f7e30075e57e475573018ac9a7ceba92cf1022a1f53fb0
+ARG GOATOOLS_SDIST_URL=https://files.pythonhosted.org/packages/90/bb/5a0413b46c18ee9956ad6b4c61c0e01f983419fe131ad3bd0c466f706db4/goatools-1.6.6.tar.gz
+ARG GOATOOLS_SDIST_SHA256=553a393675772aebd4df2cd1f30882ef7dde850b3f387014a525fb9c6f766f51
 ARG PYSOLR_VERSION=3.11.0
 ARG PYSOLR_SDIST_URL=https://files.pythonhosted.org/packages/0d/2a/b6c793a17e173524ccc7a90cdd8ebb65264f6ebcdb1942eba2478ec3a85e/pysolr-3.11.0.tar.gz
 ARG PYSOLR_SDIST_SHA256=bbd0e7467835316880f994b55386c9bc3c146733c17d85a3fed317755976c40a
@@ -30,6 +34,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH=/opt/goatools/venv/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 
+# Debian repositories roll forward; dpkg inventories below are receipts, not locks.
+# For resolution/retention failures review official packages; do not disable checks.
 RUN set -eux; \
     for attempt in 1 2 3 4 5; do \
       if apt-get -o Acquire::Retries=5 update \
@@ -49,6 +55,8 @@ WORKDIR /tmp/goatools-build
 
 COPY docker/goatools-1.6.5-pydot-wrap-width.patch /tmp/goatools-pydot.patch
 
+# Transitive PyPI requirements are resolved at build time and can drift. The fixed
+# top-level URLs do not lock that graph. Inspect pip freeze and revalidate changes.
 RUN --mount=type=cache,target=/root/.cache/pip set -eux; \
     curl --retry 5 --retry-delay 2 --retry-all-errors -fsSL \
       "${GOATOOLS_WHEEL_URL}" -o "goatools-${GOATOOLS_VERSION}-py3-none-any.whl"; \
@@ -207,9 +215,9 @@ RUN set -eux; \
       /tmp/pygraphviz-src \
       /tmp/goatools-pydot.patch
 
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS runtime
 
-ARG GOATOOLS_VERSION=1.6.5
+ARG GOATOOLS_VERSION=1.6.6
 ARG NETWORKX_VERSION=3.6.1
 ARG PYSOLR_VERSION=3.11.0
 ARG PYGRAPHVIZ_VERSION=2.0
@@ -231,6 +239,8 @@ ENV PYTHONNOUSERSITE=1 \
     TAFFISH_VERSION=${GOATOOLS_VERSION} \
     TAFFISH_RELEASE=1
 
+# Runtime APT packages also use rolling Bookworm repositories, not a snapshot.
+# Recheck dynamic-library closure and graphics after dependency changes.
 RUN set -eux; \
     for attempt in 1 2 3 4 5; do \
       if apt-get -o Acquire::Retries=5 update \
@@ -254,15 +264,25 @@ RUN set -eux; \
 
 COPY --from=builder /opt/goatools /opt/goatools
 COPY docker/goatools-smoke.sh /opt/goatools/share/testdata/goatools-smoke.sh
+COPY docker/goatools-resources.py /usr/local/bin/goatools-resources
+COPY docker/resource-catalog.json /opt/goatools/share/resource-catalog.json
+COPY docker/test-resources.py /opt/goatools/share/testdata/test-resources.py
+COPY docker/test-network-policy.py /opt/goatools/share/testdata/test-network-policy.py
+COPY src/resource_validation.py /opt/goatools/share/resource_validation.py
+# A separate startup hook guards resource I/O without rewriting upstream sources.
+COPY docker/taffish_goatools_policy.py docker/taffish_goatools_policy.pth /opt/goatools/venv/lib/python3.12/site-packages/
 
 FROM runtime AS final
 
+# Redeclare the build argument for builders that do not inherit stage ARG values.
+ARG GOATOOLS_VERSION=1.6.6
+
 RUN set -eux; \
-    chmod 0755 /opt/goatools/share/testdata/goatools-smoke.sh; \
+    chmod 0755 /opt/goatools/share/testdata/goatools-smoke.sh /usr/local/bin/goatools-resources; \
     dpkg-query -W -f='${binary:Package}\t${Version}\n' | sort \
       > /opt/goatools/share/provenance/debian-packages.tsv; \
     goatools --version 2>&1 | grep -Fx "${GOATOOLS_VERSION}" >/dev/null; \
-    python -c 'import importlib.metadata as md; import goatools, networkx, pygraphviz, pysolr; assert md.version("goatools") == "1.6.5"; assert md.version("networkx") == "3.6.1"; assert md.version("pygraphviz") == "2.0"; assert md.version("pysolr") == "3.11.0"; print(goatools.__version__)' \
+    python -c 'import importlib.metadata as md; import goatools, networkx, pygraphviz, pysolr; assert md.version("goatools") == "1.6.6"; assert md.version("networkx") == "3.6.1"; assert md.version("pygraphviz") == "2.0"; assert md.version("pysolr") == "3.11.0"; print(goatools.__version__)' \
       | grep -Fx "${GOATOOLS_VERSION}" >/dev/null; \
     /opt/goatools/share/testdata/goatools-smoke.sh buildtime; \
     find /opt/goatools/venv -type f -name '*.so' -print0 \

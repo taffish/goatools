@@ -1,7 +1,7 @@
 [package]
 name = "goatools"
 kind = "tool"
-version = "1.6.5"
+version = "1.6.6"
 release = 1
 license = "Apache-2.0"
 main = "src/main.taf"
@@ -17,7 +17,7 @@ pipe = true
 command_mode = true
 
 [container]
-image = "ghcr.io/taffish/goatools:1.6.5-r1"
+image = "ghcr.io/taffish/goatools:1.6.6-r1"
 dockerfile = "docker/Dockerfile"
 build_platforms = "linux/amd64,linux/arm64"
 
@@ -25,18 +25,18 @@ build_platforms = "linux/amd64,linux/arm64"
 domain = "bio"
 categories = ["functional-genomics", "gene-ontology", "enrichment-analysis", "bioinformatics-utilities"]
 keywords = ["GOATOOLS", "Gene Ontology", "GO enrichment", "GOEA", "GO DAG", "GO slim", "GAF", "GPAD", "gene2go", "Cytoscape", "NetworkX", "pydot", "pygraphviz"]
-description = "GOATOOLS 1.6.5 command-line and Python runtime for Gene Ontology enrichment, ontology DAG analysis, GO slim mapping, annotation parsing, reporting, and Graphviz visualization."
+description = "GOATOOLS 1.6.6 command-line and Python runtime for Gene Ontology enrichment, ontology DAG analysis, GO slim mapping, annotation parsing, reporting, and Graphviz visualization."
 
 [upstream]
 name = "GOATOOLS"
 type = "github"
 repo = "tanghaibao/goatools"
 homepage = "https://github.com/tanghaibao/goatools"
-manual = "https://github.com/tanghaibao/goatools/blob/v1.6.5/README.md"
-release_url = "https://github.com/tanghaibao/goatools/tree/v1.6.5"
-downloads = "https://files.pythonhosted.org/packages/e6/87/07e80f31af72d8e2c35936d1e5670ac05ff6009cc4a9412eb99e18efd24a/goatools-1.6.5.tar.gz"
-version = "1.6.5"
-commit = "c5fedea21e9f66c3c2c13da788ea04a5c760329f"
+manual = "https://github.com/tanghaibao/goatools/blob/v1.6.6/README.md"
+release_url = "https://github.com/tanghaibao/goatools/tree/v1.6.6"
+downloads = "https://files.pythonhosted.org/packages/90/bb/5a0413b46c18ee9956ad6b4c61c0e01f983419fe131ad3bd0c466f706db4/goatools-1.6.6.tar.gz"
+version = "1.6.6"
+commit = "ffcdfcdbee22f652dd600561ffabb67e60fccb8b"
 license = "BSD-2-Clause"
 description = "Python library and command-line toolkit for Gene Ontology enrichment, ontology traversal, annotation processing, GO slim mapping, and visualization."
 citation = "Klopfenstein DV et al. GOATOOLS: A Python library for Gene Ontology analyses. Scientific Reports. 2018;8:10872."
@@ -48,5 +48,5 @@ strip_prefix = "v"
 [smoke]
 backend = "docker"
 timeout = 600
-exist = ["goatools", "find_enrichment.py", "go_plot.py", "map_to_slim.py", "wr_hier.py", "plot_go_term.py", "ncbi_gene_results_to_python.py", "python", "dot", "curl", "gzip", "sh", "grep", "ldd"]
-test = ["/opt/goatools/share/testdata/goatools-smoke.sh identity", "/opt/goatools/share/testdata/goatools-smoke.sh goea", "/opt/goatools/share/testdata/goatools-smoke.sh spreadsheet", "/opt/goatools/share/testdata/goatools-smoke.sh slim", "/opt/goatools/share/testdata/goatools-smoke.sh graphics"]
+exist = ["goatools", "find_enrichment.py", "go_plot.py", "map_to_slim.py", "wr_hier.py", "plot_go_term.py", "ncbi_gene_results_to_python.py", "python", "dot", "curl", "gzip", "sh", "grep", "ldd", "goatools-resources"]
+test = ["/opt/goatools/share/testdata/goatools-smoke.sh identity", "/opt/goatools/share/testdata/goatools-smoke.sh goea", "/opt/goatools/share/testdata/goatools-smoke.sh spreadsheet", "/opt/goatools/share/testdata/goatools-smoke.sh slim", "/opt/goatools/share/testdata/goatools-smoke.sh graphics", "/opt/goatools/share/testdata/goatools-smoke.sh algorithms", "python /opt/goatools/share/testdata/test-resources.py", "python /opt/goatools/share/testdata/test-network-policy.py"]

@@ -2,11 +2,15 @@
 set -eu
 
 mode="${1:-all}"
+tmp=""
+cleanup() { test -z "$tmp" || rm -rf "$tmp"; }
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 make_fixture() {
   fixture_dir="$1"
-  rm -rf "${fixture_dir}"
-  mkdir -p "${fixture_dir}"
+  test -d "${fixture_dir}"
 
   cat > "${fixture_dir}/go.obo" <<'EOF'
 format-version: 1.2
@@ -51,11 +55,9 @@ EOF
 }
 
 run_identity() {
-  tmp="/tmp/taf-goatools-identity-$$"
-  rm -rf "${tmp}"
-  mkdir -p "${tmp}"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/taf-goatools-identity.XXXXXX")"
 
-  goatools --version 2>&1 | grep -Fx '1.6.5' >/dev/null
+  goatools --version 2>&1 | grep -Fx '1.6.6' >/dev/null
   goatools --help 2>&1 | grep -F 'Run GO enrichment analysis.' >/dev/null
   goatools --help 2>&1 | grep -F 'fetch_associations' >/dev/null
 
@@ -70,7 +72,12 @@ run_identity() {
     prt_terms \
     wr_hier \
     wr_sections; do \
-    goatools help "${subcommand}" > "${tmp}/${subcommand}.help" 2>&1
+    if goatools help "${subcommand}" > "${tmp}/${subcommand}.help" 2>&1; then :; else
+      status=$?
+      printf >&2 'GOATOOLS_SMOKE_FAIL help %s exit=%s\n' "$subcommand" "$status"
+      tail -60 "${tmp}/${subcommand}.help" >&2
+      exit "$status"
+    fi
     test -s "${tmp}/${subcommand}.help"
   done
 
@@ -107,8 +114,8 @@ import statsmodels
 import xlsxwriter
 from goatools.base import nopen
 
-assert goatools.__version__ == "1.6.5"
-assert md.version("goatools") == "1.6.5"
+assert goatools.__version__ == "1.6.6"
+assert md.version("goatools") == "1.6.6"
 assert md.version("networkx") == "3.6.1"
 assert md.version("pysolr") == "3.11.0"
 assert md.version("pygraphviz") == "2.0"
@@ -121,7 +128,7 @@ PY
 }
 
 run_goea() {
-  tmp="/tmp/taf-goatools-goea-$$"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/taf-goatools-goea.XXXXXX")"
   make_fixture "${tmp}"
 
   goatools find_enrichment \
@@ -140,7 +147,7 @@ run_goea() {
 }
 
 run_spreadsheet() {
-  tmp="/tmp/taf-goatools-spreadsheet-$$"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/taf-goatools-spreadsheet.XXXXXX")"
   make_fixture "${tmp}"
 
   goatools find_enrichment \
@@ -167,7 +174,7 @@ PY
 }
 
 run_slim() {
-  tmp="/tmp/taf-goatools-slim-$$"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/taf-goatools-slim.XXXXXX")"
   make_fixture "${tmp}"
 
   goatools map_to_slim \
@@ -181,7 +188,7 @@ run_slim() {
 }
 
 run_graphics() {
-  tmp="/tmp/taf-goatools-graphics-$$"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/taf-goatools-graphics.XXXXXX")"
   make_fixture "${tmp}"
 
   goatools plot_go_term \
@@ -209,6 +216,36 @@ run_graphics() {
   rm -rf "${tmp}"
 }
 
+run_algorithms() {
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/taf-goatools-algorithms.XXXXXX")"
+  make_fixture "$tmp"
+  goatools find_enrichment "$tmp/study.txt" "$tmp/population.txt" "$tmp/association.txt" \
+    --annofmt=id2gos --obo="$tmp/go.obo" --algorithm=elim --pval=1 --outfile="$tmp/elim.tsv"
+  grep -F 'GO:0000001' "$tmp/elim.tsv" >/dev/null
+  python - "$tmp/go.obo" <<'PY'
+import random
+import sys
+from goatools.obo_parser import GODag
+from goatools.go_enrichment import GOEnrichmentStudy
+dag = GODag(sys.argv[1])
+population = list(range(20))
+assoc = {i: {"GO:0000001" if i < 4 else "GO:0000002"} for i in population}
+study = list(range(4))
+for alg, alternative in (("classic", "two-sided"), ("elim", "greater")):
+    random.seed(17)
+    goea = GOEnrichmentStudy(population, assoc, dag, algorithm=alg,
+                            alternative=alternative, methods=["fdr_bh"])
+    results = goea.run_study(study)
+    by_id = {r.GO: r for r in results}
+    assert 0 < by_id["GO:0000001"].p_uncorrected < 0.01
+    assert all(0 <= r.p_uncorrected <= 1 for r in results)
+    assert "GO:0008150" in by_id
+    assert len(goea.run_study(study)) == len(results)
+print("ALGORITHM_CLASSIC_ELIM_PASS")
+PY
+}
+
+printf 'GOATOOLS_SMOKE_STAGE %s\n' "$mode"
 case "${mode}" in
   identity)
     run_identity
@@ -225,6 +262,9 @@ case "${mode}" in
   graphics)
     run_graphics
     ;;
+  algorithms)
+    run_algorithms
+    ;;
   buildtime)
     run_identity
     run_goea
@@ -235,9 +275,11 @@ case "${mode}" in
     run_spreadsheet
     run_slim
     run_graphics
+    run_algorithms
     ;;
   *)
     echo "unknown smoke mode: ${mode}" >&2
     exit 2
     ;;
 esac
+printf 'GOATOOLS_SMOKE_PASS %s\n' "$mode"

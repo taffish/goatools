@@ -1,99 +1,89 @@
-taf-goatools 1.6.5-r1
+goatools 1.6.6-r1
 
-GOATOOLS command-line and Python runtime for Gene Ontology enrichment,
-ontology DAG analysis, GO slim mapping, annotation parsing, and plotting.
+Purpose:
+  Gene Ontology enrichment, GO slim mapping, ontology traversal and plotting.
 
 Usage:
-  taf-goatools --help              Show this TAFFISH help
-  taf-goatools --version           Show TAFFISH package version
-  taf-goatools -- --help           Show upstream goatools help
-  taf-goatools -- --version        Show upstream GOATOOLS version
-  taf-goatools goatools COMMAND [ARGS...]
-  taf-goatools COMMAND [ARGS...]
-
-Command mode:
-  Prefer an explicit goatools dispatcher for upstream subcommands so TAFFISH
-  does not interpret the subcommand name as another container executable:
+  taf-goatools -- --help
+  taf-goatools -- --version
   taf-goatools goatools help find_enrichment
-  taf-goatools goatools find_enrichment --help
-
-Included command groups:
-  compare_gos, find_enrichment, map_to_slim, prt_terms
-  go_plot, plot_go_term, wr_hier, wr_sections
-  fetch_associations, ncbi_gene_results_to_python
-  find_enrichment.py, go_plot.py, map_to_slim.py, wr_hier.py,
-  plot_go_term.py, ncbi_gene_results_to_python.py
-
-Prepare ontology data:
-  mkdir -p goatools-data
-  taf-goatools curl -fL \
-    https://current.geneontology.org/ontology/go-basic.obo \
-    -o goatools-data/go-basic.obo
-  taf-goatools curl -fL \
-    https://current.geneontology.org/ontology/subsets/goslim_generic.obo \
-    -o goatools-data/goslim_generic.obo
-
-Prepare common annotation data:
-  taf-goatools curl -fL \
-    https://current.geneontology.org/annotations/goa_human.gaf.gz \
-    -o goatools-data/goa_human.gaf.gz
-  taf-goatools curl -fL \
-    https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene2go.gz \
-    -o goatools-data/gene2go.gz
-
-Record mutable data snapshots:
-  taf-goatools sha256sum goatools-data/go-basic.obo \
-    goatools-data/goslim_generic.obo goatools-data/goa_human.gaf.gz \
-    goatools-data/gene2go.gz > goatools-data/SHA256SUMS
-  Also record retrieval dates and source URLs because current-release
-  endpoints can change independently of this app version.
-
-GO enrichment:
-  taf-goatools goatools find_enrichment \
-    study.txt population.txt association.txt \
-    --annofmt=id2gos \
-    --obo=goatools-data/go-basic.obo \
-    --outfile=goea.tsv
-  Study and population files contain one identifier per line. id2gos uses an
-  identifier followed by semicolon-separated GO IDs. GAF, GPAD, and NCBI
-  gene2go are also supported. Use an .xlsx suffix for spreadsheet output.
-
-GO slim mapping:
-  taf-goatools goatools map_to_slim \
-    goatools-data/go-basic.obo goatools-data/goslim_generic.obo \
-    --term=GO:0008135
-  Use --association_file=association.txt to map a complete association file.
-
-Lineage plotting:
-  taf-goatools goatools plot_go_term \
-    goatools-data/go-basic.obo --term=GO:0008135 \
-    --engine=pygraphviz --gml --output=GO_0008135.svg
-  --gml also writes GO_0008135.gml for Cytoscape. NetworkX, pygraphviz, and
-  pydot are installed; a recorded patch restores the advertised pydot path.
-
-Python API:
   taf-goatools python analysis.py
-  The complete GOATOOLS package and upstream goatools.test_data are retained.
+  Use "goatools subcommand"; a bare subcommand may be treated as an executable.
 
-Online association query:
-  taf-goatools goatools fetch_associations --taxon_id=9606 \
-    -o human.id2gos.txt
-  pysolr is included for this official command. GOlr contents and network
-  availability are external; prefer versioned local annotations for workflows.
+Prepare resources (explicit setup; analysis can stay offline):
+  Ontologies and annotations are not bundled. Select only the members needed.
+  Catalog IDs: go-2026-08-05-basic, go-2026-08-05-slim-generic,
+  go-2026-08-05-yeast-gaf. Other fixed snapshots: --recipe recipe.json (README).
+  mkdir -p "$HOME/.local/share/taffish/databases"
+  cd "$HOME/.local/share/taffish/databases"
+  export TAFFISH_GOATOOLS_DB_AUTO_MOUNT=0
+  taf-goatools goatools-resources --db-root goatools --resource go-2026-08-05-basic --dry-run
+  taf-goatools goatools-resources --db-root goatools --resource go-2026-08-05-basic --allow-network
+  taf-goatools goatools-resources --db-root goatools --resource go-2026-08-05-slim-generic --allow-network
+  taf-goatools goatools-resources --db-root goatools --verify
+  unset TAFFISH_GOATOOLS_DB_AUTO_MOUNT
+  Complete members are reused. Retry interrupted installs with the same command.
+  Downloads require --allow-network; --archive-dir DIR installs verified files offline.
+  For GAF input, decompress the original archive into your writable project first:
+  taf-goatools gzip -cd /go-resources/go-2026-08-05-yeast-gaf/YEAST-mod.gaf.gz > yeast.gaf
+  --force resets bad download caches only; it never replaces an installed member.
+  To repair an invalid installed member, prepare a new root and select it explicitly.
 
-Platform and data boundary:
-  Native images: linux/amd64 and linux/arm64.
-  No ontology, GO slim, GAF, GPAD, gene2go, or study dataset is embedded.
-  There is no fixed database path; pass normal local paths on each command.
-  Explicit local --obo files avoid GOATOOLS implicit-download data drift.
+Shared resource paths:
+  Search order: TAFFISH_GOATOOLS_DB_PATH, personal path above,
+  /usr/local/share/taffish/databases/goatools, /opt/taffish/databases/goatools.
+  The first existing root must validate; no fallback across broken/partial roots.
+  Verified roots (including valid root symlinks) mount read-only at /go-resources.
+  Automatic validation needs host Python 3 (standard library only).
+  Each versioned member is independent; missing members are not auto-downloaded.
+  export TAFFISH_GOATOOLS_DB_PATH="/absolute/prepared root"
+  Set TAFFISH_GOATOOLS_DB_AUTO_MOUNT=0 to disable discovery for setup/manual paths.
+  An administrator can install once in either system path; users only need read access.
 
-Scientific boundary:
-  The app does not choose the background population, identifier mapping,
-  annotation release, evidence-code policy, ontology relationships, or
-  multiple-testing method. Validate these choices for the study design.
+Backend-specific use (same analysis syntax on all three):
+  Docker:    TAFFISH_CONTAINER_BACKEND=docker taf-goatools goatools help find_enrichment
+  Podman:    TAFFISH_CONTAINER_BACKEND=podman taf-goatools goatools help find_enrichment
+  Apptainer: TAFFISH_CONTAINER_BACKEND=apptainer taf-goatools goatools help find_enrichment
+  Manual bind /srv/go to /go-resources (disable discovery first):
+  export TAFFISH_GOATOOLS_DB_AUTO_MOUNT=0
+  Docker:    export TAFFISH_DOCKER_RUN_ARGS="-v /srv/go:/go-resources:ro"
+  Podman:    export TAFFISH_PODMAN_RUN_ARGS="-v /srv/go:/go-resources:ro"
+  Apptainer: export TAFFISH_APPTAINER_RUN_ARGS="--bind /srv/go:/go-resources:ro"
+  Verify a manually mapped root before analysis:
+  taf-goatools goatools-resources --db-root /go-resources --verify
+  For installation use a writable parent bind and an explicit --db-root below it.
+  Native images: linux/amd64 and linux/arm64. Apptainer requires a compatible Linux host.
 
-Detailed documentation:
+Enrichment:
+  Inputs: study.txt and population.txt contain one matching identifier per line;
+  association.txt contains "identifier GO:0000001;GO:0000002" (id2gos).
+  taf-goatools goatools find_enrichment study.txt population.txt association.txt --annofmt=id2gos --obo=/go-resources/go-2026-08-05-basic/go-basic.obo --outfile=goea.tsv
+  Choose .xlsx for spreadsheet output. GAF, GPAD and gene2go formats are also supported.
+  Add --algorithm=elim for topology-aware scoring; classic is the default.
+  --method selects multiple-testing correction, not the scoring algorithm.
+  Consult upstream help before changing --alternative or elim correction settings.
+
+GO slim and graphics:
+  taf-goatools goatools map_to_slim /go-resources/go-2026-08-05-basic/go-basic.obo /go-resources/go-2026-08-05-slim-generic/goslim_generic.obo --term=GO:0008135
+  taf-goatools goatools plot_go_term /go-resources/go-2026-08-05-basic/go-basic.obo --term=GO:0008135 --engine=pygraphviz --output=lineage.svg
+  pydot is also included. Add --gml to export a graph for a separate Cytoscape installation.
+  Outputs: GOEA TSV/XLSX, mappings, hierarchy text, SVG/PNG and optional GML.
+
+Immediate notes:
+  Missing local resources fail explicitly; analysis never downloads them implicitly.
+  Prepare them with the helper above, then pass the exact local file path.
+  GOlr fetch_associations is an explicit online query, not a fixed shared database.
+  Keep literal inner quotes for command arguments containing spaces:
+  taf-goatools goatools find_enrichment '"study set.txt"' population.txt association.txt --annofmt=id2gos --obo=go.obo --outfile='"result table.tsv"'
+  Shared root environment variables use ordinary shell quotes, without inner quotes.
+
+More help:
+  taf-goatools goatools-resources --help
+  taf-goatools goatools help plot_go_term
   https://github.com/taffish/goatools
-  https://github.com/tanghaibao/goatools/tree/v1.6.5
-  https://geneontology.org/docs/download-ontology/
-  https://geneontology.org/docs/download-go-annotations/
+  https://github.com/tanghaibao/goatools/tree/v1.6.6
+
+Wrapper options:
+  taf-goatools --help       Show this task help.
+  taf-goatools --version    Show wrapper identity.
+  taf-goatools --compile    Print generated shell.
