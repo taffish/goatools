@@ -38,6 +38,11 @@ def ensure_dir(path, mode):
 
 def install(root, rec, archive_dir=None, force=False, allow_network=False):
     member = root / rec["id"]
+    # Reuse and new installs apply the same complete-root identity check as discovery.
+    # Do not let a valid selected member hide a corrupt or symlinked sibling.
+    if root.exists():
+        for existing in root.iterdir():
+            verify_member(existing)
     # Immutable installs never overwrite even a corrupt or dangling old member.
     if member.exists() or member.is_symlink():
         verify_member(member, rec)

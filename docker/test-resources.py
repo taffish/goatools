@@ -60,6 +60,16 @@ with tempfile.TemporaryDirectory(prefix="goatools-resource-test-") as td:
     assert all(p.stat().st_mode & 0o777 == 0o644 for p in member.iterdir())
     assert "ALREADY_READY" in run(*args)
     assert "VERIFY_PASS" in run("--verify", "--db-root", root)
+    # Selecting a ready member must not bypass validation of the whole shared root.
+    sibling = root / "broken-sibling"
+    sibling.mkdir()
+    snapshot = {p.name: mod.digest(p) for p in member.iterdir()}
+    run(*args, ok=False)
+    run(*args, "--force", ok=False)
+    assert sibling.is_dir() and not list(sibling.iterdir())
+    assert snapshot == {p.name: mod.digest(p) for p in member.iterdir()}
+    sibling.rmdir()
+    assert "ALREADY_READY" in run(*args)
     # Re-signing an inventory cannot make inconsistent resource identity valid.
     for field, value in (("id", "renamed-v2"), ("size", len(data) + 1),
                          ("sha256", "0" * 64), ("filename", "other.obo"),

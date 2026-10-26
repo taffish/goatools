@@ -38,5 +38,5 @@ taf_goatools_mount() {
         printf -- '--volume=%s:/go-resources:ro' "$taf_go_root"
     fi
 }
-<taf-app:container:ghcr.io/taffish/goatools:1.6.6-r1$@[docker/podman: "$(taf_goatools_mount docker)"][apptainer: "$(taf_goatools_mount apptainer)"]>
+<taf-app:container:ghcr.io/taffish/goatools:1.6.7-r1$@[docker/podman: "$(taf_goatools_mount docker)"][apptainer: "$(taf_goatools_mount apptainer)"]>
 goatools ::*ARGV*::

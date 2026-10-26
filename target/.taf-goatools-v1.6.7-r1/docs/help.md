@@ -1,4 +1,4 @@
-goatools 1.6.6-r1
+goatools 1.6.7-r1
 
 Purpose:
   Gene Ontology enrichment, GO slim mapping, ontology traversal and plotting.
@@ -81,7 +81,7 @@ More help:
   taf-goatools goatools-resources --help
   taf-goatools goatools help plot_go_term
   https://github.com/taffish/goatools
-  https://github.com/tanghaibao/goatools/tree/v1.6.6
+  https://github.com/tanghaibao/goatools/tree/v1.6.7
 
 Wrapper options:
   taf-goatools --help       Show this task help.

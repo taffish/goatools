@@ -1,6 +1,0 @@
-{
-  "artifact": "taf-goatools-v1.6.6-r1",
-  "schema": "taffish.build/v1",
-  "source_sha256": "e45f1842632612b26848c03f18b75fac65a0df40c15cc73b13ff6396f1ec8609",
-  "wrapper_sha256": "623446cfd9f3e479e579be7cbb96be2e91da0d2e9159ddc7aee498cad5f602bc"
-}

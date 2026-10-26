@@ -5,9 +5,9 @@
 Package identity:
 
 - name: `goatools`; command: `taf-goatools`; kind: `tool`
-- version: `1.6.6-r1`; TAFFISH packaging license: Apache-2.0
-- upstream: [GOATOOLS v1.6.6](https://github.com/tanghaibao/goatools/tree/v1.6.6)
-- upstream commit: `ffcdfcdbee22f652dd600561ffabb67e60fccb8b`; upstream license: BSD-2-Clause
+- version: `1.6.7-r1`; TAFFISH packaging license: Apache-2.0
+- upstream: [GOATOOLS v1.6.7](https://github.com/tanghaibao/goatools/tree/v1.6.7)
+- upstream commit: `5b88eefcd8284f5d146d36728b4925785b563125`; upstream license: BSD-2-Clause
 - native platforms: `linux/amd64`, `linux/arm64`
 
 ## What This App Packages
@@ -17,11 +17,12 @@ dispatcher and standalone commands, Graphviz, pydot, pygraphviz, NetworkX
 (for GML export), pysolr (for the advertised GOlr command), curl and gzip.
 The Python API and upstream `goatools.test_data` remain available.
 
-Version 1.6.6 introduces pluggable GOEA scoring and `elim`, per-run Fisher
-calculation reuse, and FDR null scoring that follows the study algorithm,
-alternative and in-population study size. The default remains classic.
+Version 1.6.7 fixes Resnik/Lin/Schlicker semantic similarity to use the most
+informative common ancestor (MICA), not merely the deepest ancestor, and makes
+ties deterministic. This upstream correction can change similarity values;
+it is not a TAFFISH algorithm modification. Classic/elim GOEA remain available.
 No enrichment algorithm is patched by TAFFISH. The existing one-line
-1.6.5-origin patch passing `wrap_width` to pydot remains necessary in 1.6.6;
+1.6.5-origin patch passing `wrap_width` to pydot remains necessary in 1.6.7;
 its source, checksum and scope are retained under `/opt/goatools/share/patches`.
 
 ## Scope and Interfaces
@@ -45,11 +46,11 @@ No browser service, port or GUI lifecycle is implied by SVG output.
 After this candidate has been published and indexed:
 
 ```sh
-taf install goatools 1.6.6-r1
+taf install goatools 1.6.7-r1
 ```
 
 For local candidate testing, run `taf build` in this repository and use
-`target/taf-goatools-v1.6.6-r1` with the matching locally built image.
+`target/taf-goatools-v1.6.7-r1` with the matching locally built image.
 The validation status below is not a claim that the candidate is already published.
 
 ## Usage and Command Mode
@@ -139,7 +140,8 @@ unset TAFFISH_GOATOOLS_DB_AUTO_MOUNT
 
 Each selected versioned member has its own subdirectory, original data bytes,
 recipe, resource license, SHA256 inventory and READY receipt. Repeating a complete
-installation verifies and skips it. The helper never replaces an existing member,
+installation verifies the entire existing resource root before skipping the selected member.
+A corrupt sibling is rejected without changing any previously installed data. The helper never replaces an existing member,
 even with `--force`; choose a new root to repair a corrupt installed member.
 `--force` explicitly resets bad/partial download cache only.
 
@@ -250,15 +252,12 @@ archives and bytecode, but preserves runtime imports, upstream example data, lic
 source archives and inventories under `/opt/goatools/share`.
 Build-time checks are version/help/import/tiny enrichment only. Graphics run in
 separate runtime smoke, not as a fragile ARM64 build gate.
-Final image sizes are 571,026,040 bytes (amd64 Docker, 544.57 MiB) and
-611,741,384 bytes (arm64 Podman, 583.40 MiB). `/opt/goatools` accounts for about
-362/379 MiB; scientific Python libraries and retained upstream example data dominate.
-Approximately 20 MiB of
-official source archives are deliberately retained for provenance/license review.
-Small headers in the pinned Python base and NumPy's public include interface
-are retained; deleting files in the immutable base in another layer would not
-reclaim the downloaded base layer. There is no copied compiler/sysroot or
-production GO database.
+The 2026-10-25 native candidate image sizes (Docker's uncompressed accounting)
+are 574,431,843 bytes on amd64 (about 548 MiB) and 604,889,814 bytes on arm64
+(about 577 MiB). Scientific Python, upstream example data, source archives and
+license/provenance material are retained. Both native builds and their current
+runtime matrices passed. The image contains no build compiler or temporary
+build tree; the remaining major dependencies support the advertised APIs.
 
 ## Testing and Boundaries
 
@@ -268,42 +267,29 @@ new elim behavior and offline resource contracts. Each test is independent and
 does not require production mounts or network. Runtime writes are limited to
 unique TMPDIR scratch/cache and explicitly requested output/resource directories.
 
-Validation on 2026-10-20:
+On 2026-10-25, the current candidate passed:
 
-| Evidence axis | Result |
-| --- | --- |
-| Native amd64 (xjp Docker) and arm64 (local Podman Linux VM) | Both built from app-root context `.` using `-f docker/Dockerfile`; no QEMU claim; final-stage version ARG is explicit for both builders |
-| Docker / Podman on native amd64 and arm64 | 24 independent offline probes in normal rootfs plus the same 24 in read-only rootfs for each tested combination |
-| Apptainer, native amd64 | 24 independent offline probes using the read-only SIF from that exact amd64 OCI; 216 direct probes in total |
-| Built wrapper, all five tested backend/platform combinations | 34 main-flow/resource checks and 58 new fail-closed/identity/recovery checks each; actual host binds and paths containing spaces |
-| Resource interruption, amd64 three backends | 30 checks each: lock/download/staging INT/TERM, old-member preservation, recovery, idempotence and verification |
-| Shared resources | Three fixed official members installed/read; explicitly opted-in HTTPS slim setup, offline reuse without opt-in, root-owned member read by non-root and write rejection on each backend |
-| Discovery | 46 isolated contract cases including personal/site priorities, override/disable, symlinks, corrupt/partial roots, no fallback and missing host Python |
-| Plotting and diagnostics | Both SVG/PNG engines plus GML; actual PNGs visually checked; injected help error retains stage, exit code and log |
-| Final help | 89 lines; real gzip/slim/plot/manual-verify examples passed on three backends; final wrapper executable/source/manifest unchanged by the final help-only note |
-| Packaged identity | Eight current helper/validator/policy/smoke files matched byte-for-byte inside each tested backend/platform image |
+| Native environment | Actual validated backends | Evidence |
+| --- | --- | --- |
+| xjp Linux amd64 | Docker, Podman, Apptainer | Fresh offline smoke; D/P non-root read-only roots; same-OCI read-only SIF; real-wrapper main paths, resource installation and interruption/recovery/idempotence |
+| macOS-hosted Linux arm64 | Docker, Podman | Native builds; fresh offline and non-root read-only smoke; real-wrapper paths, resource guards/recovery and source/permission identity |
 
-Source-file checks compare the installed package with the official sdist: the only
-Python source difference is the inherited one-line pydot argument fix described
-above. The canonical Action is copied byte-for-byte from fresh `taf new` and has
-not been customized.
+The direct matrix contains 225 independent probes: 25 per mode, including
+combined command existence, 15 individual commands and nine manifest tests.
+The real wrapper additionally covers quoted paths, both rendering engines,
+explicit HTTPS/offline resource setup on all three xjp backends, administrator-once
+ordinary-user read-only consumption, corrupt-member rejection, and the new
+synthetic MICA/tie-breaking regression. Eighteen controlled xjp interruption
+scenarios cover INT/TERM at lock, download and staging phases across three backends;
+old members survive and retries/verification remain idempotent.
 
-ARM64 Apptainer is **not separately validated for this repair**. Local Docker
-Desktop required an explicitly authorized restart; the interrupted attempt is
-retained separately, and the full ARM64 Docker suite passed after recovery using
-the exact same OCI identity as Podman. Native amd64/arm64 and the three backends
-close the independent platform/backend axes. The shared validator and resource
-policy are architecture-neutral; Docker/Podman use the same mount arguments and
-no architecture-specific Apptainer branch is introduced. Actual deployment into
-host `/usr/local/share` or `/opt/taffish` was not performed; priority was tested
-in isolation and root-once permission/mount behavior with a representative
-root-owned prepared directory. The standard locations remain administrator choices.
-Interruption tests exercise locked/offline-transfer/staging transaction phases;
-real opted-in HTTPS setup and offline reuse are separately tested, not every
-network interruption timing. No production-scale scientific accuracy claim follows from synthetic packaging
-tests. The real GO ontology/GAF parser checks do not validate every species/catalog,
-live GOlr responses or every analytical API. Future Action/Index failures require
-a new immutable successor, not rewriting this version.
+The Action is unchanged and byte-identical to fresh taf new. ARM64 Apptainer is
+not separately validated: the native platform and backend axes are covered,
+but this cross-combination is not claimed as tested. Full production-scale
+scientific accuracy, every organism/catalog, live GOlr services and future public
+CI/GHCR/Index are not certified by these packaging tests. Public images require
+their own post-publication digest, non-root permission and Index/SIF checks.
+Local publish dry-run and candidate readiness do not mean this version is published.
 
 ## License and Citation
 
@@ -314,4 +300,4 @@ licenses, patch and package inventories are retained in the image.
 Klopfenstein DV et al. GOATOOLS: A Python library for Gene Ontology analyses.
 Scientific Reports. 2018;8:10872. https://doi.org/10.1038/s41598-018-28948-z
 
-Upstream manual: https://github.com/tanghaibao/goatools/blob/v1.6.6/README.md
+Upstream manual: https://github.com/tanghaibao/goatools/blob/v1.6.7/README.md
