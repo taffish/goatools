@@ -1,4 +1,4 @@
-goatools 1.6.7-r1
+goatools 1.6.8-r1
 
 Purpose:
   Gene Ontology enrichment, GO slim mapping, ontology traversal and plotting.
@@ -28,6 +28,7 @@ Prepare resources (explicit setup; analysis can stay offline):
   taf-goatools gzip -cd /go-resources/go-2026-08-05-yeast-gaf/YEAST-mod.gaf.gz > yeast.gaf
   --force resets bad download caches only; it never replaces an installed member.
   To repair an invalid installed member, prepare a new root and select it explicitly.
+  After interruption, verify first; inspect changed paths, incomplete members or unknown staging before retrying.
 
 Shared resource paths:
   Search order: TAFFISH_GOATOOLS_DB_PATH, personal path above,
@@ -58,7 +59,7 @@ Enrichment:
   Inputs: study.txt and population.txt contain one matching identifier per line;
   association.txt contains "identifier GO:0000001;GO:0000002" (id2gos).
   taf-goatools goatools find_enrichment study.txt population.txt association.txt --annofmt=id2gos --obo=/go-resources/go-2026-08-05-basic/go-basic.obo --outfile=goea.tsv
-  Choose .xlsx for spreadsheet output. GAF, GPAD and gene2go formats are also supported.
+  Choose .xlsx for spreadsheet output. GAF, GPAD 1.1/2.0 and gene2go are also supported.
   Add --algorithm=elim for topology-aware scoring; classic is the default.
   --method selects multiple-testing correction, not the scoring algorithm.
   Consult upstream help before changing --alternative or elim correction settings.
@@ -81,7 +82,7 @@ More help:
   taf-goatools goatools-resources --help
   taf-goatools goatools help plot_go_term
   https://github.com/taffish/goatools
-  https://github.com/tanghaibao/goatools/tree/v1.6.7
+  https://github.com/tanghaibao/goatools/tree/v1.6.8
 
 Wrapper options:
   taf-goatools --help       Show this task help.

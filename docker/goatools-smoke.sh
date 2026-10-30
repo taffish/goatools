@@ -57,7 +57,7 @@ EOF
 run_identity() {
   tmp="$(mktemp -d "${TMPDIR:-/tmp}/taf-goatools-identity.XXXXXX")"
 
-  goatools --version 2>&1 | grep -Fx '1.6.7' >/dev/null
+  python /opt/goatools/share/testdata/goatools-identity.py
   goatools --help 2>&1 | grep -F 'Run GO enrichment analysis.' >/dev/null
   goatools --help 2>&1 | grep -F 'fetch_associations' >/dev/null
 
@@ -114,8 +114,8 @@ import statsmodels
 import xlsxwriter
 from goatools.base import nopen
 
-assert goatools.__version__ == "1.6.7"
-assert md.version("goatools") == "1.6.7"
+assert goatools.__version__ == "1.6.8"
+assert md.version("goatools") == "1.6.8"
 assert md.version("networkx") == "3.6.1"
 assert md.version("pysolr") == "3.11.0"
 assert md.version("pygraphviz") == "2.0"

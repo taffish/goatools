@@ -3,14 +3,14 @@
 FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS builder
 
 ARG TARGETARCH
-ARG GOATOOLS_VERSION=1.6.7
-ARG GOATOOLS_COMMIT=5b88eefcd8284f5d146d36728b4925785b563125
+ARG GOATOOLS_VERSION=1.6.8
+ARG GOATOOLS_COMMIT=2711506289bd47d50feb07a11add729d9bc6e684
 # Official artifacts are hash-checked; a 404 is not permission to change a hash.
 # Recover identical verified bytes or review a successor and rerun the full suite.
-ARG GOATOOLS_WHEEL_URL=https://files.pythonhosted.org/packages/74/f5/ad0556d6e93ac3da2f0eec50e2a12d45217777dbc2ce6b77879e1fb2a2bd/goatools-1.6.7-py3-none-any.whl
-ARG GOATOOLS_WHEEL_SHA256=6af3d675bd5656a56e201264d4b67ffa97bc4abbe44d2a0d0e32b8a8ab1e1cc0
-ARG GOATOOLS_SDIST_URL=https://files.pythonhosted.org/packages/59/b7/ec46a115dfb511856d7adfbffb8f8eb8e350d78087de4c5f45a8aada91c5/goatools-1.6.7.tar.gz
-ARG GOATOOLS_SDIST_SHA256=e5c74e8317d46ba5c4f93f7bd883458e64d42a3731b7fe41b89db1ed90b50819
+ARG GOATOOLS_WHEEL_URL=https://files.pythonhosted.org/packages/b1/9c/b720e15779b43661e8e486c19a8774d6750a68f99bd7662988c2f8810984/goatools-1.6.8-py3-none-any.whl
+ARG GOATOOLS_WHEEL_SHA256=80ecd102367b5381993edf4466ebcba715bb07472357bc1d8b21c7ca226b7605
+ARG GOATOOLS_SDIST_URL=https://files.pythonhosted.org/packages/12/67/6ee19dce701f009ef4c74c46965cfdf51871ef7a67a705e75c5b2001abfe/goatools-1.6.8.tar.gz
+ARG GOATOOLS_SDIST_SHA256=3a318a440ff973d93c94bb6f530a8f342ed07d76e54b579578f44d983fcd9e40
 ARG PYSOLR_VERSION=3.11.0
 ARG PYSOLR_SDIST_URL=https://files.pythonhosted.org/packages/0d/2a/b6c793a17e173524ccc7a90cdd8ebb65264f6ebcdb1942eba2478ec3a85e/pysolr-3.11.0.tar.gz
 ARG PYSOLR_SDIST_SHA256=bbd0e7467835316880f994b55386c9bc3c146733c17d85a3fed317755976c40a
@@ -217,7 +217,7 @@ RUN set -eux; \
 
 FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS runtime
 
-ARG GOATOOLS_VERSION=1.6.7
+ARG GOATOOLS_VERSION=1.6.8
 ARG NETWORKX_VERSION=3.6.1
 ARG PYSOLR_VERSION=3.11.0
 ARG PYGRAPHVIZ_VERSION=2.0
@@ -266,9 +266,10 @@ COPY --from=builder /opt/goatools /opt/goatools
 COPY docker/goatools-smoke.sh /opt/goatools/share/testdata/goatools-smoke.sh
 COPY docker/goatools-resources.py /usr/local/bin/goatools-resources
 COPY docker/resource-catalog.json /opt/goatools/share/resource-catalog.json
-COPY docker/test-resources.py /opt/goatools/share/testdata/test-resources.py
+COPY docker/test-resources.py docker/test-resource-safety.py /opt/goatools/share/testdata/
 COPY docker/test-network-policy.py /opt/goatools/share/testdata/test-network-policy.py
 COPY docker/test-semantic.py /opt/goatools/share/testdata/test-semantic.py
+COPY docker/test-upstream.py docker/goatools-identity.py /opt/goatools/share/testdata/
 COPY src/resource_validation.py /opt/goatools/share/resource_validation.py
 # A separate startup hook guards resource I/O without rewriting upstream sources.
 COPY docker/taffish_goatools_policy.py docker/taffish_goatools_policy.pth /opt/goatools/venv/lib/python3.12/site-packages/
@@ -276,15 +277,14 @@ COPY docker/taffish_goatools_policy.py docker/taffish_goatools_policy.pth /opt/g
 FROM runtime AS final
 
 # Redeclare the build argument for builders that do not inherit stage ARG values.
-ARG GOATOOLS_VERSION=1.6.7
+ARG GOATOOLS_VERSION=1.6.8
 
 RUN set -eux; \
     chmod 0755 /opt/goatools/share/testdata/goatools-smoke.sh /usr/local/bin/goatools-resources; \
     dpkg-query -W -f='${binary:Package}\t${Version}\n' | sort \
       > /opt/goatools/share/provenance/debian-packages.tsv; \
-    goatools --version 2>&1 | grep -Fx "${GOATOOLS_VERSION}" >/dev/null; \
-    python -c 'import importlib.metadata as md; import goatools, networkx, pygraphviz, pysolr; assert md.version("goatools") == "1.6.7"; assert md.version("networkx") == "3.6.1"; assert md.version("pygraphviz") == "2.0"; assert md.version("pysolr") == "3.11.0"; print(goatools.__version__)' \
-      | grep -Fx "${GOATOOLS_VERSION}" >/dev/null; \
+    python /opt/goatools/share/testdata/goatools-identity.py; \
+    python -c 'import importlib.metadata as md; import networkx, pygraphviz, pysolr; assert md.version("networkx") == "3.6.1"; assert md.version("pygraphviz") == "2.0"; assert md.version("pysolr") == "3.11.0"'; \
     /opt/goatools/share/testdata/goatools-smoke.sh buildtime; \
     find /opt/goatools/venv -type f -name '*.so' -print0 \
       | xargs -0 -r ldd > /tmp/goatools-ldd.txt; \

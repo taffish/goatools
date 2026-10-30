@@ -158,3 +158,4 @@ with tempfile.TemporaryDirectory(prefix="goatools-resource-test-") as td:
         else:
             raise AssertionError(invalid)
     print("RESOURCE_OFFLINE_TESTS_PASS")
+subprocess.run([sys.executable, str(Path(__file__).with_name("test-resource-safety.py"))], check=True)

@@ -5,9 +5,9 @@
 Package identity:
 
 - name: `goatools`; command: `taf-goatools`; kind: `tool`
-- version: `1.6.7-r1`; TAFFISH packaging license: Apache-2.0
-- upstream: [GOATOOLS v1.6.7](https://github.com/tanghaibao/goatools/tree/v1.6.7)
-- upstream commit: `5b88eefcd8284f5d146d36728b4925785b563125`; upstream license: BSD-2-Clause
+- version: `1.6.8-r1`; TAFFISH packaging license: Apache-2.0
+- upstream: [GOATOOLS v1.6.8](https://github.com/tanghaibao/goatools/tree/v1.6.8)
+- upstream commit: `2711506289bd47d50feb07a11add729d9bc6e684`; upstream license: BSD-2-Clause
 - native platforms: `linux/amd64`, `linux/arm64`
 
 ## What This App Packages
@@ -17,12 +17,14 @@ dispatcher and standalone commands, Graphviz, pydot, pygraphviz, NetworkX
 (for GML export), pysolr (for the advertised GOlr command), curl and gzip.
 The Python API and upstream `goatools.test_data` remain available.
 
-Version 1.6.7 fixes Resnik/Lin/Schlicker semantic similarity to use the most
-informative common ancestor (MICA), not merely the deepest ancestor, and makes
-ties deterministic. This upstream correction can change similarity values;
-it is not a TAFFISH algorithm modification. Classic/elim GOEA remain available.
+Version 1.6.8 adds GPAD 2.0 reading alongside 1.1, preserves the first annotation
+after a GPAD header, and fixes NCBI chromosome-column parsing and Python module
+section lookup. GPAD 2.0's multiple taxa are represented as a list and repeated
+properties as lists of values. Previously omitted first rows are now included,
+so GPAD-derived results can change. These are upstream fixes, not TAFFISH changes.
+The 1.6.7 MICA semantic-similarity correction and classic/elim GOEA remain available.
 No enrichment algorithm is patched by TAFFISH. The existing one-line
-1.6.5-origin patch passing `wrap_width` to pydot remains necessary in 1.6.7;
+1.6.5-origin patch passing `wrap_width` to pydot remains necessary in 1.6.8;
 its source, checksum and scope are retained under `/opt/goatools/share/patches`.
 
 ## Scope and Interfaces
@@ -46,11 +48,11 @@ No browser service, port or GUI lifecycle is implied by SVG output.
 After this candidate has been published and indexed:
 
 ```sh
-taf install goatools 1.6.7-r1
+taf install goatools 1.6.8-r1
 ```
 
 For local candidate testing, run `taf build` in this repository and use
-`target/taf-goatools-v1.6.7-r1` with the matching locally built image.
+`target/taf-goatools-v1.6.8-r1` with the matching locally built image.
 The validation status below is not a claim that the candidate is already published.
 
 ## Usage and Command Mode
@@ -144,6 +146,18 @@ installation verifies the entire existing resource root before skipping the sele
 A corrupt sibling is rejected without changing any previously installed data. The helper never replaces an existing member,
 even with `--force`; choose a new root to repair a corrupt installed member.
 `--force` explicitly resets bad/partial download cache only.
+Installation uses Linux directory descriptors to pin its resource root, private
+cache and newly created staging directory. If a path is replaced during an
+installation, it fails with a diagnostic and never follows that replacement for
+cleanup. Unrecognized or identity-changed staging directories are retained for
+inspection. Atomic no-replace publication also refuses an empty destination
+created by another process. Host shares without Linux no-replace rename (including
+Docker Desktop gRPC FUSE) use an exclusive new directory and hardlinks, with READY
+committed atomically last. Automatic discovery and helper verification require that complete marker/inventory;
+concurrent reads may fail closed while installation is in progress. A failed
+uncommitted install removes only this transaction's files, never a foreign child.
+The filesystem must support either no-replace rename or same-filesystem hardlinks.
+These are packaging safety checks, not GO algorithms.
 
 Administrators can run the same setup once under
 `/usr/local/share/taffish/databases/goatools` or
@@ -156,11 +170,12 @@ Setup is serialized by an advisory lock in a caller-owned private sibling
 `.<root-name>.goatools-cache` directory. Downloads have bounded retries, resumable
 partials and full SHA/size verification; a zero-byte partial restarts normally.
 Invalid completed caches fail closed unless explicitly reset. Staging and final
-members share a filesystem; publication is an atomic rename. Peak per-member
+members share a filesystem; publication is an atomic rename or READY-last commit. Peak per-member
 space is cache + stage + 64 MiB reserve. Cache is reusable; retained verified
 downloads consume approximately the installed data size again. SIGINT/TERM/HUP
-must preserve existing members. SIGKILL may leave a private staging directory;
-it is not visible as an installed member and requires administrator inspection.
+must preserve existing members. SIGKILL may leave private staging or an incomplete
+READY-last member; verification rejects an incomplete member and an administrator
+must inspect it before reuse. Do not treat an unverified directory as installed.
 Do not remove locks/caches while another installation runs.
 
 ### Discovery, override, disable, and backend fallback
@@ -252,12 +267,11 @@ archives and bytecode, but preserves runtime imports, upstream example data, lic
 source archives and inventories under `/opt/goatools/share`.
 Build-time checks are version/help/import/tiny enrichment only. Graphics run in
 separate runtime smoke, not as a fragile ARM64 build gate.
-The 2026-10-25 native candidate image sizes (Docker's uncompressed accounting)
-are 574,431,843 bytes on amd64 (about 548 MiB) and 604,889,814 bytes on arm64
-(about 577 MiB). Scientific Python, upstream example data, source archives and
-license/provenance material are retained. Both native builds and their current
-runtime matrices passed. The image contains no build compiler or temporary
-build tree; the remaining major dependencies support the advertised APIs.
+The final native images are 574,497,328 bytes on amd64 (574.5 MB / 547.9 MiB)
+and 604,961,134 bytes on ARM64 (605.0 MB / 576.9 MiB).
+Scientific Python, upstream example data, source archives and license/provenance
+material are retained. The image contains no build compiler or temporary build
+tree; the remaining major dependencies support the advertised APIs.
 
 ## Testing and Boundaries
 
@@ -267,21 +281,28 @@ new elim behavior and offline resource contracts. Each test is independent and
 does not require production mounts or network. Runtime writes are limited to
 unique TMPDIR scratch/cache and explicitly requested output/resource directories.
 
-On 2026-10-25, the current candidate passed:
+The 1.6.8 candidate was freshly built and verified on 2026-10-29; previous
+1.6.7 results were not used to certify this successor:
 
 | Native environment | Actual validated backends | Evidence |
 | --- | --- | --- |
-| xjp Linux amd64 | Docker, Podman, Apptainer | Fresh offline smoke; D/P non-root read-only roots; same-OCI read-only SIF; real-wrapper main paths, resource installation and interruption/recovery/idempotence |
-| macOS-hosted Linux arm64 | Docker, Podman | Native builds; fresh offline and non-root read-only smoke; real-wrapper paths, resource guards/recovery and source/permission identity |
+| xjp Linux amd64 | Docker, Podman, Apptainer | PASS: fresh offline smoke; D/P non-root read-only roots; same-OCI SIF; real-wrapper main paths, resources and interruption/recovery |
+| macOS-hosted Linux arm64 | Docker, Podman | PASS: native build; offline and non-root read-only smoke; real-wrapper paths, resources and host-bind transaction regressions |
 
-The direct matrix contains 225 independent probes: 25 per mode, including
-combined command existence, 15 individual commands and nine manifest tests.
-The real wrapper additionally covers quoted paths, both rendering engines,
-explicit HTTPS/offline resource setup on all three xjp backends, administrator-once
-ordinary-user read-only consumption, corrupt-member rejection, and the new
-synthetic MICA/tie-breaking regression. Eighteen controlled xjp interruption
-scenarios cover INT/TERM at lock, download and staging phases across three backends;
-old members survive and retries/verification remain idempotent.
+The passing direct matrix contains 234 independent probes: 26 per mode, including
+combined command existence, 15 individual commands and ten manifest tests.
+Real-wrapper checks cover quoted paths, both rendering engines, explicit
+HTTPS/offline resource setup, administrator-once read-only consumption, corrupt
+resource rejection and interrupted-install recovery. The 1.6.8 GPAD/Python fixes
+and prior MICA correction use small independent synthetic fixtures.
+Seventeen transaction regressions cover early interruption, output failure,
+parent/staging substitution, existing destinations and READY-last publication.
+They also pass through the actual wrapper on writable host mounts in all five
+tested platform/backend combinations. On xjp, actual INT/TERM interruption,
+recovery and repeated installation preserve old resources. Fixed official slim
+HTTPS installation, offline basic/GAF installation, root-once read-only sharing
+and a real HTTPS partial-resume check passed. These tests use synthetic or small
+public fixtures, not production research data.
 
 The Action is unchanged and byte-identical to fresh taf new. ARM64 Apptainer is
 not separately validated: the native platform and backend axes are covered,
@@ -300,4 +321,4 @@ licenses, patch and package inventories are retained in the image.
 Klopfenstein DV et al. GOATOOLS: A Python library for Gene Ontology analyses.
 Scientific Reports. 2018;8:10872. https://doi.org/10.1038/s41598-018-28948-z
 
-Upstream manual: https://github.com/tanghaibao/goatools/blob/v1.6.7/README.md
+Upstream manual: https://github.com/tanghaibao/goatools/blob/v1.6.8/README.md
